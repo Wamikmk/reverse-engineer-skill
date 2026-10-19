@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reverse Engineer Anything"
+  short_description: "REA investigation and clean-room reconstruction"
+  default_prompt: "Use $reverse-engineer to investigate a feature with local REA evidence and produce a behavioral specification."

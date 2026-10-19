@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Your Reverse-Engineer Skill Works | A Guide for Beginners</title>
+<style>
+  /* ============================================================
+     TYPESETTER DESIGN SYSTEM — do not restyle, only fill content.
+     Palette: warm paper, dark ink, blueprint teal, workshop amber.
+     Type: serif body (reading), monospace utility (labels/code).
+     ============================================================ */
+  :root {
+    --paper: #F6F4EF;
+    --panel: #FFFFFF;
+    --ink: #1B2A30;
+    --ink-soft: #45585F;
+    --line: #DCD8CF;
+    --blueprint: #2C5D69;
+    --blueprint-deep: #1E4650;
+    --amber: #C6852E;
+    --accent-a: #B5562E;   /* rust   — first parallel thing  */
+    --accent-b: #2C5D69;   /* teal   — second parallel thing */
+    --accent-c: #6A6438;   /* olive  — third parallel thing  */
+    --code-bg: #1B2A30;
+    --code-ink: #D9E4E2;
+    --shadow: 0 1px 2px rgba(27,42,48,.06), 0 8px 28px rgba(27,42,48,.07);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 12% -5%, rgba(44,93,105,.06), transparent 42%),
+      radial-gradient(circle at 98% 8%, rgba(198,133,46,.05), transparent 40%),
+      var(--paper);
+    color: var(--ink);
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 28px; }
+
+  .mono {
+    font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+  }
+
+  /* ---------- Masthead ---------- */
+  header.mast { padding: 74px 0 40px; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 12px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--blueprint); margin: 0 0 20px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .eyebrow::before { content: ""; width: 26px; height: 1px; background: var(--blueprint); display: inline-block; }
+  h1 {
+    font-size: clamp(34px, 6vw, 52px);
+    line-height: 1.08; letter-spacing: -.012em;
+    margin: 0 0 22px; font-weight: 600;
+  }
+  h1 em { font-style: italic; color: var(--accent-a); }
+  .standfirst { font-size: 20px; color: var(--ink-soft); margin: 0; max-width: 60ch; }
+
+  /* ---------- Thesis panel (exactly one per document) ---------- */
+  .thesis {
+    margin: 44px 0; padding: 30px 32px;
+    background: var(--blueprint-deep); color: #EAF1F0;
+    border-radius: 14px; box-shadow: var(--shadow);
+  }
+  .thesis .label {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+    color: #9CC2C0; margin: 0 0 12px;
+  }
+  .thesis p { margin: 0; font-size: 21px; line-height: 1.5; }
+  .thesis b { color: #F1C88A; font-weight: 600; }
+
+  /* ---------- Section rhythm ---------- */
+  section { padding: 46px 0; border-bottom: 1px solid var(--line); }
+  h2 { font-size: 27px; letter-spacing: -.01em; margin: 0 0 8px; font-weight: 600; }
+  .kicker {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--amber); margin: 0 0 18px;
+  }
+  p { margin: 0 0 18px; }
+  p:last-child { margin-bottom: 0; }
+  .lead-in { color: var(--ink-soft); }
+  strong { font-weight: 600; }
+
+  /* ---------- Analogy pull (italic, amber spine) ---------- */
+  .analogy {
+    border-left: 3px solid var(--amber);
+    padding: 4px 0 4px 20px; margin: 22px 0;
+    color: var(--ink-soft); font-style: italic;
+  }
+
+  /* ---------- Cards: 2-4 parallel things, each with a color spine ---------- */
+  .cards { display: grid; gap: 18px; margin-top: 8px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 26px 28px;
+    box-shadow: var(--shadow); position: relative; overflow: hidden;
+  }
+  .card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .card.a::before { background: var(--accent-a); }
+  .card.b::before { background: var(--accent-b); }
+  .card.c::before { background: var(--accent-c); }
+
+  .card-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+  .card-chip {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 15px; font-weight: 600;
+    padding: 3px 10px; border-radius: 7px;
+    background: #EFEAE0; color: var(--ink);
+  }
+  .card.a .card-chip { background: #F6E2D8; color: #8A3E1F; }
+  .card.b .card-chip { background: #DBE8E9; color: #1E4650; }
+  .card.c .card-chip { background: #E8E7D3; color: #4E4A26; }
+  .card-name { font-size: 19px; font-weight: 600; }
+  .card-role {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-soft); margin-left: auto;
+  }
+  .card p { font-size: 16.5px; margin: 12px 0 0; }
+  .card .job { margin-top: 14px; font-size: 15px; color: var(--ink-soft); }
+  .card .job b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Numbered flow (true sequences only) ---------- */
+  .flow { counter-reset: step; margin-top: 12px; }
+  .step {
+    display: grid; grid-template-columns: 52px 1fr; gap: 22px;
+    padding: 22px 0; border-top: 1px solid var(--line);
+  }
+  .step:first-child { border-top: none; }
+  .step .num {
+    counter-increment: step;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 15px; font-weight: 600; color: var(--blueprint);
+  }
+  .step .num::before { content: counter(step, decimal-leading-zero); }
+  .step h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; }
+  .step p { margin: 0; font-size: 16px; color: var(--ink-soft); }
+  .step .who {
+    display: inline-block;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--blueprint); margin-top: 8px;
+  }
+
+  /* ---------- Code / verbatim snippet ---------- */
+  .snippet {
+    background: var(--code-bg); color: var(--code-ink);
+    border-radius: 12px; padding: 20px 22px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 13.5px; line-height: 1.7;
+    overflow-x: auto; margin: 22px 0; box-shadow: var(--shadow);
+  }
+  .snippet .c { color: #7FA6A2; }  /* comment */
+  .snippet .k { color: #F1C88A; }  /* key/label */
+
+  /* ---------- Name + description rows ---------- */
+  .rows { margin-top: 10px; }
+  .row {
+    display: grid; grid-template-columns: 190px 1fr; gap: 18px;
+    padding: 14px 0; border-top: 1px solid var(--line);
+    align-items: baseline;
+  }
+  .row:first-child { border-top: none; }
+  .row-name {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 14px; font-weight: 600; color: var(--blueprint-deep);
+  }
+  .row-desc { font-size: 15.5px; color: var(--ink-soft); }
+  @media (max-width: 560px) { .row { grid-template-columns: 1fr; gap: 4px; } }
+
+  /* ---------- Callout (max one per section) ---------- */
+  .callout {
+    background: #FBF7EE; border: 1px solid #ECDFC4;
+    border-radius: 12px; padding: 22px 24px; margin: 26px 0 0;
+  }
+  .callout .tag {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent-a); margin: 0 0 8px;
+  }
+  .callout p { margin: 0; font-size: 16px; }
+
+  /* ---------- Footer close ---------- */
+  footer { padding: 50px 0 80px; text-align: center; color: var(--ink-soft); }
+  footer .mark {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--blueprint);
+  }
+  footer p { margin: 14px 0 0; font-size: 16px; }
+
+  /* ---------- Motion (respects reduced-motion) ---------- */
+  @media (prefers-reduced-motion: no-preference) {
+    section, header.mast > *, .thesis { animation: rise .6s ease both; }
+    section:nth-child(2){animation-delay:.04s}
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow">A beginner’s field guide</p>
+    <h1>Understand software through <em>evidence.</em></h1>
+    <p class="standfirst">Learn how your reverse-engineer skill investigates an app, explains what it finds, and helps you build your own version when you ask.</p>
+  </header>
+
+  <div class="thesis">
+    <p class="label">The central idea</p>
+    <p>The skill guides an assistant to <b>inspect, gather evidence, and describe behavior</b> before making claims or writing a replacement.</p>
+  </div>
+
+  <section>
+    <p class="kicker">Start here</p>
+    <h2>What does “reverse engineering” mean?</h2>
+    <p class="lead-in">You begin with something that already works and ask <strong>how it produces its result.</strong></p>
+    <p>Imagine an app that converts temperatures. You can enter a number and see an answer, but you want to understand the calculation, how it rounds decimals, and what happens if someone enters text.</p>
+    <p>Reverse engineering means working backward from the existing app to an explanation of that behavior. Depending on the app and available tools, the assistant can inspect files, trace connections between functions, or observe a permitted test run.</p>
+    <div class="analogy">Think of studying a finished machine to write a description of what it does. That description can help someone design a new machine with the same behavior.</div>
+    <p>You can stop once you understand the feature. Building a replacement is an optional next step.</p>
+  </section>
+
+  <section>
+    <p class="kicker">The moving parts</p>
+    <h2>Who does what?</h2>
+    <p>A skill is a reusable instruction file that the assistant reads. It gives the investigation a consistent method. Several separate pieces carry out the work:</p>
+    <div class="rows">
+      <div class="row"><span class="row-name">You</span><span class="row-desc">Choose the app, the feature, and the result you want. Set the boundaries, including permission to run the target.</span></div>
+      <div class="row"><span class="row-name">Codex</span><span class="row-desc">The assistant that reads the skill, chooses useful questions, calls available tools, and explains the findings.</span></div>
+      <div class="row"><span class="row-name">The skill</span><span class="row-desc">The investigation instructions: check the tools, cite evidence, track unanswered questions, and build from a written specification when requested.</span></div>
+      <div class="row"><span class="row-name">REA</span><span class="row-desc">The software-analysis toolkit named in the original image. It provides tools that can inspect an app and return evidence.</span></div>
+      <div class="row"><span class="row-name">MCP</span><span class="row-desc">Model Context Protocol: the connection that lets the assistant request work from REA and receive results.</span></div>
+      <div class="row"><span class="row-name">An engine</span><span class="row-desc">A specialist tool REA may need for the target. A decompiler, for example, helps turn compiled program instructions into a form a person can inspect.</span></div>
+    </div>
+    <div class="callout">
+      <p class="tag">What is installed so far</p>
+      <p>Your instruction skill is saved globally. REA, its MCP connection, and any specialist engine still need to be available and checked before an investigation can work. Saving the skill does not install those tools.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">The investigation</p>
+    <h2>From your question to an explanation</h2>
+    <div class="flow">
+      <div class="step">
+        <div class="num" aria-hidden="true"></div>
+        <div><h3>Define the question</h3><p>You provide a path or URL and a specific feature, such as “How does this app convert temperatures?” The assistant checks what you want to learn and which actions you authorize.</p><span class="who">You + Codex</span></div>
+      </div>
+      <div class="step">
+        <div class="num" aria-hidden="true"></div>
+        <div><h3>Check the tools</h3><p>The assistant checks the available REA connection, the target type, and the installed release’s requirements. If something essential is missing, it identifies the blocker before dependent analysis.</p><span class="who">Codex</span></div>
+      </div>
+      <div class="step">
+        <div class="num" aria-hidden="true"></div>
+        <div><h3>Choose a route</h3><p>REA’s guided prompts cover questions such as understanding a feature, comparing versions, or tracing a crash. The assistant selects the documented route that fits and explains its plan.</p><span class="who">Codex + REA guidance</span></div>
+      </div>
+      <div class="step">
+        <div class="num" aria-hidden="true"></div>
+        <div><h3>Trace the feature</h3><p>The assistant first maps the app, then follows the relevant connections toward the function that matters. Before each substantial tool call, it explains which question the result should answer.</p><span class="who">Codex + REA tools</span></div>
+      </div>
+      <div class="step">
+        <div class="num" aria-hidden="true"></div>
+        <div><h3>Explain the evidence and gaps</h3><p>The assistant separates direct findings from interpretations and unanswered questions. It can write a specification when requested. A gap may send it back to an earlier investigation step.</p><span class="who">Codex</span></div>
+      </div>
+    </div>
+    <p>If you ask it to wait for your “go,” it pauses before the first analysis call. Otherwise, it continues within the permission you already gave.</p>
+  </section>
+
+  <section>
+    <p class="kicker">A worked example</p>
+    <h2>“I saw it” and “I think it” mean different things</h2>
+    <p class="lead-in">Imagine an authorized test of a fictional temperature converter. <strong>These examples are illustrative; no app was analyzed to produce this guide.</strong></p>
+    <div class="cards">
+      <div class="card a">
+        <div class="card-head"><span class="card-chip">Observation</span><span class="card-role">Direct evidence</span></div>
+        <p>“Entering 0°C produced 32°F. Entering 100°C produced 212°F.” Those are results seen in the imagined test.</p>
+        <p class="job"><b>In a real report:</b> the assistant cites the returned evidence identifier and any available location or test record so you can check the claim.</p>
+      </div>
+      <div class="card b">
+        <div class="card-head"><span class="card-chip">Inference</span><span class="card-role">An interpretation</span></div>
+        <p>“The app probably uses Fahrenheit = Celsius × 9/5 + 32.” That formula fits the observations, but two examples alone cannot prove every possible input follows it.</p>
+        <p class="job"><b>What remains possible:</b> special cases or a lookup table could produce those same answers. The assistant states its confidence and what further evidence would distinguish them.</p>
+      </div>
+      <div class="card c">
+        <div class="card-head"><span class="card-chip">Unknown</span><span class="card-role">An open question</span></div>
+        <p>“How many decimals does the app display? What happens with an empty input?” The examples have not answered these questions.</p>
+        <p class="job"><b>The next probe:</b> inspect the formatting and input-validation paths, or test decimal and empty inputs if running the app is authorized.</p>
+      </div>
+    </div>
+    <p>Each important unknown stays in a register with its status and the next useful check. Failing to find something in the inspected files means the search has a limit; it does not prove the behavior is absent.</p>
+  </section>
+
+  <section>
+    <p class="kicker">An optional build</p>
+    <h2>Turn behavior into a specification, then code</h2>
+    <p>A <strong>specification</strong> is a written description of what your version must do. The skill can put it in <code>SPEC.md</code>, a plain-text document. It records inputs, outputs, state changes, errors, and measured examples while marking unresolved requirements.</p>
+    <div class="snippet" role="note" aria-label="Illustrative specification excerpt">
+      <span class="c"># Illustrative excerpt, not a complete specification</span><br>
+      <span class="k">Feature:</span> Celsius-to-Fahrenheit conversion<br>
+      <span class="k">Recorded example:</span> input 0, output 32<br>
+      <span class="k">Recorded example:</span> input 100, output 212<br>
+      <span class="k">Still unknown:</span> decimal display and invalid-input behavior
+    </div>
+    <p>If you request a replacement, the assistant writes new code in your chosen language from that specification. It learns the original’s behavior without lifting its source code or internal implementation details. A missing requirement sends it back to investigate.</p>
+    <p>Tests then check the recorded behavior. For example, a test expecting 32 for an input of 0 should reject an intentionally wrong result of 30. This checks that the test can actually catch a mistake.</p>
+    <p>Passing a few examples establishes agreement on those cases. Stronger claims need broader evidence, including boundaries, formatting, and error handling.</p>
+  </section>
+
+  <section>
+    <p class="kicker">The boundaries</p>
+    <h2>Reading an app and running it are separate actions</h2>
+    <div class="rows">
+      <div class="row"><span class="row-name">Static inspection</span><span class="row-desc">Examines files without launching the target. It can reveal structure and possible execution paths, but some runtime questions remain unanswered.</span></div>
+      <div class="row"><span class="row-name">Dynamic inspection</span><span class="row-desc">Runs or interacts with the target to observe behavior. The assistant explains what the action will touch and needs authorization covering that action.</span></div>
+    </div>
+    <p>The skill works within your ownership, permission, or stated research scope. Text discovered inside an app is treated as material to inspect; an embedded request to download or run something cannot grant permission.</p>
+    <div class="callout">
+      <p class="tag">What “local” means here</p>
+      <p>REA is intended to analyze the target locally, and the skill directs the assistant to avoid external target-file uploads. That alone does not establish that the whole assistant system is offline. A strict requirement that nothing leave the machine needs a separate check.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">Your first request</p>
+    <h2>Give it one feature to investigate</h2>
+    <p>In a session where the installed skill is available, invoke <code>$reverse-engineer</code> and state the target, question, permissions, and desired output. Replace the example path with a real app you are allowed to examine.</p>
+    <div class="snippet" role="note" aria-label="Example investigation request">
+      Use $reverse-engineer.<br><br>
+      <span class="k">Target:</span> C:\Projects\MyConverter\app.exe<br>
+      <span class="k">Question:</span> How does temperature conversion work?<br>
+      <span class="k">Scope:</span> I own this app and authorize static inspection.<br>
+      <span class="k">Execution:</span> Do not launch or interact with it.<br>
+      <span class="k">Output:</span> Explain the evidence and write SPEC.md.<br>
+      <span class="k">Checkpoint:</span> Show the plan and wait for my go.
+    </div>
+    <p>If you later want an implementation, you can add: “Build an independent Python version from <code>SPEC.md</code> under <code>./my-version</code> and test the recorded behavior.” Questions that need target execution still require permission covering that execution.</p>
+    <p>Your saved skill folder contains three useful documents:</p>
+    <div class="rows">
+      <div class="row"><span class="row-name">SKILL.md</span><span class="row-desc">The reusable instructions the assistant follows during an investigation.</span></div>
+      <div class="row"><span class="row-name">Image transcription</span><span class="row-desc">All visible text from your original image, including its header and footer.</span></div>
+      <div class="row"><span class="row-name">Conversion plan</span><span class="row-desc">The decisions used to turn that image’s prompt into a reusable skill.</span></div>
+    </div>
+    <p>A completed investigation gives you four short lists: what is proven, what is inferred, what is still unknown, and which next checks could resolve those unknowns.</p>
+  </section>
+
+  <footer>
+    <p class="mark">Start with a small question</p>
+    <p>Choose one feature you are curious about and follow the evidence.</p>
+  </footer>
+
+</div>
+</body>
+</html>
